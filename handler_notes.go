@@ -130,7 +130,8 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		respondWithError(w, 503, "Could not read notes", nil)
 		return
 	}
-	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "page_size": pageSize})
+	pages := max(1, (total+pageSize-1)/pageSize)
+	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_more": page < pages})
 }
 func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request, u database.User) {
 	var n leafNote
