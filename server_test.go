@@ -179,6 +179,10 @@ func TestNotePageSizeIsBoundedAndReported(t *testing.T) {
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"page_size":1`) || !strings.Contains(response.Body.String(), `"total":2`) || !strings.Contains(response.Body.String(), `"pages":2`) || !strings.Contains(response.Body.String(), `"has_more":true`) {
 		t.Fatal(response.Code, response.Body)
 	}
+	response = request(h, "GET", "/v1/notes?page_size=1&page=2", "", cookie)
+	if !strings.Contains(response.Body.String(), `"has_previous":true`) || !strings.Contains(response.Body.String(), `"has_more":false`) {
+		t.Fatal(response.Code, response.Body)
+	}
 	for _, size := range []string{"0", "101", "bad"} {
 		if response := request(h, "GET", "/v1/notes?page_size="+size, "", cookie); response.Code != 400 {
 			t.Fatalf("%s: %d %s", size, response.Code, response.Body)

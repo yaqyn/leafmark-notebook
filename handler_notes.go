@@ -131,7 +131,7 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		return
 	}
 	pages := max(1, (total+pageSize-1)/pageSize)
-	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_more": page < pages})
+	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_previous": page > 1, "has_more": page < pages})
 }
 func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request, u database.User) {
 	var n leafNote
