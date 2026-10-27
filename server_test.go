@@ -208,6 +208,17 @@ func TestWhitespaceOnlyNoteSearchShowsAllNotes(t *testing.T) {
 		t.Fatal(response.Code, response.Body)
 	}
 }
+
+func TestNoteTitlesStayOnOneLine(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "single-line-title")
+	for _, title := range []string{"first\\nsecond", "first\\rsecond"} {
+		response := request(h, "POST", "/v1/notes", `{"title":"`+title+`","note":"valid body"}`, cookie)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("accepted title %q: %d %s", title, response.Code, response.Body)
+		}
+	}
+}
 func TestSessionsValidationAndCSRF(t *testing.T) {
 	cfg, h := testApp(t)
 	cookie := signup(t, h, "tester")
