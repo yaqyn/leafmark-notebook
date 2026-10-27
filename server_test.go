@@ -219,6 +219,19 @@ func TestNoteTitlesStayOnOneLine(t *testing.T) {
 		}
 	}
 }
+
+func TestNoteBodiesRejectUnsafeControlsButKeepFormattingWhitespace(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "note-controls")
+	for _, body := range []string{`{"title":"Control","note":"before\u0000after"}`, `{"title":"Control","note":"before\u0008after"}`} {
+		if response := request(h, "POST", "/v1/notes", body, cookie); response.Code != http.StatusBadRequest {
+			t.Fatalf("accepted control: %d %s", response.Code, response.Body)
+		}
+	}
+	if response := request(h, "POST", "/v1/notes", `{"title":"Formatted","note":"one\ntwo\tindented"}`, cookie); response.Code != http.StatusCreated {
+		t.Fatalf("rejected formatting whitespace: %d %s", response.Code, response.Body)
+	}
+}
 func TestSessionsValidationAndCSRF(t *testing.T) {
 	cfg, h := testApp(t)
 	cookie := signup(t, h, "tester")
