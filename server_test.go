@@ -214,7 +214,7 @@ func TestSessionsValidationAndCSRF(t *testing.T) {
 	if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
 		t.Fatal("unsafe session cookie")
 	}
-	for _, body := range []string{`{`, `{"title":""}`, `{"title":"ok","unknown":1}`, `{"title":"ok"} {}`} {
+	for _, body := range []string{`{`, `{"title":""}`, `{"title":"line\nbreak"}`, `{"title":"ok","unknown":1}`, `{"title":"ok"} {`} {
 		if w := request(h, "POST", "/v1/notes", body, cookie); w.Code != 400 {
 			t.Fatal(body, w.Code)
 		}

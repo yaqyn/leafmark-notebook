@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -32,7 +33,7 @@ func scanNote(row interface{ Scan(...any) error }) (n leafNote, err error) {
 }
 func validateNote(w http.ResponseWriter, n *leafNote) bool {
 	n.Title = strings.TrimSpace(n.Title)
-	if !utf8.ValidString(n.Title) || !utf8.ValidString(n.Note) || utf8.RuneCountInString(n.Title) > 160 || len(n.Note) > 100000 {
+	if !utf8.ValidString(n.Title) || !utf8.ValidString(n.Note) || strings.IndexFunc(n.Title, unicode.IsControl) >= 0 || utf8.RuneCountInString(n.Title) > 160 || len(n.Note) > 100000 {
 		respondWithError(w, 400, "Use a title under 160 characters and a note under 100 KB", nil)
 		return false
 	}
