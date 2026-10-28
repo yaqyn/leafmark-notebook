@@ -208,6 +208,19 @@ func TestWhitespaceOnlyNoteSearchShowsAllNotes(t *testing.T) {
 		t.Fatal(response.Code, response.Body)
 	}
 }
+func TestExactTitleFilter(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "title-filter")
+	for _, title := range []string{"Plan", "Planning"} {
+		if response := request(h, "POST", "/v1/notes", `{"title":"`+title+`"}`, cookie); response.Code != 201 {
+			t.Fatal(response.Code, response.Body)
+		}
+	}
+	response := request(h, "GET", "/v1/notes?title=PLAN", "", cookie)
+	if response.Code != 200 || !strings.Contains(response.Body.String(), `"title":"Plan"`) || strings.Contains(response.Body.String(), `"title":"Planning"`) {
+		t.Fatal(response.Code, response.Body)
+	}
+}
 func TestSessionsValidationAndCSRF(t *testing.T) {
 	cfg, h := testApp(t)
 	cookie := signup(t, h, "tester")
