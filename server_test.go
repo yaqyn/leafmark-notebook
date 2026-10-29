@@ -228,7 +228,7 @@ func TestExactTitleFilter(t *testing.T) {
 func TestNoteBodiesRejectUnsafeControlsButKeepFormattingWhitespace(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-controls")
-	for _, body := range []string{`{"title":"Control","note":"before\u0000after"}`, `{"title":"Control","note":"before\u0008after"}`} {
+	for _, body := range []string{`{"title":"Control","note":"before\u0000after"}`, `{"title":"Control","note":"before\u0008after"}`, `{"title":"Control","note":"before\u0085after"}`, `{"title":"Control","note":"before\u009fafter"}`} {
 		if response := request(h, "POST", "/v1/notes", body, cookie); response.Code != http.StatusBadRequest {
 			t.Fatalf("accepted control: %d %s", response.Code, response.Body)
 		}

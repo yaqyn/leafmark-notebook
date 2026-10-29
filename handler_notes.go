@@ -38,7 +38,7 @@ func validateNote(w http.ResponseWriter, n *leafNote) bool {
 		return false
 	}
 	for _, char := range n.Note {
-		if (char < 32 && char != '\n' && char != '\r' && char != '\t') || char == 127 {
+		if unicode.IsControl(char) && char != '\n' && char != '\r' && char != '\t' {
 			respondWithError(w, 400, "Notes may contain line breaks and tabs, but not other control characters", nil)
 			return false
 		}
