@@ -151,7 +151,7 @@ func TestNoteSortModesAreValidated(t *testing.T) {
 	if _, err := cfg.conn.Exec(`UPDATE notes SET created_at='2025-01-01T00:00:00Z' WHERE title='Older'`); err != nil {
 		t.Fatal(err)
 	}
-	for _, sort := range []string{"created", "updated", "oldest"} {
+	for _, sort := range []string{"created", "updated", "oldest", "title", "title-desc"} {
 		if response := request(h, "GET", "/v1/notes?sort="+sort, "", cookie); response.Code != 200 {
 			t.Fatalf("%s: %d %s", sort, response.Code, response.Body)
 		}
@@ -165,6 +165,10 @@ func TestNoteSortModesAreValidated(t *testing.T) {
 	}
 	if response := request(h, "GET", "/v1/notes?sort=random", "", cookie); response.Code != 400 {
 		t.Fatalf("invalid sort: %d %s", response.Code, response.Body)
+	}
+	response = request(h, "GET", "/v1/notes?sort=title-desc", "", cookie)
+	if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil || len(page.Notes) != 2 || page.Notes[0].Title != "Older" {
+		t.Fatalf("descending title ordering: %d %s", response.Code, response.Body.String())
 	}
 }
 func TestNotePageSizeIsBoundedAndReported(t *testing.T) {
