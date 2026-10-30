@@ -26,6 +26,7 @@ func testApp(t *testing.T) (*apiConfig, http.Handler) {
 	cfg := &apiConfig{DB: database.New(db), conn: db, allowSignup: true, limiter: newRateLimiter()}
 	return cfg, cfg.routes()
 }
+
 func request(h http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
@@ -36,6 +37,7 @@ func request(h http.Handler, method, path, body string, cookie *http.Cookie) *ht
 	h.ServeHTTP(w, r)
 	return w
 }
+
 func signup(t *testing.T, h http.Handler, name string) *http.Cookie {
 	t.Helper()
 	w := request(h, "POST", "/v1/auth/register", `{"name":"Test","username":"`+name+`","password":"correct horse battery staple"}`, nil)
@@ -44,6 +46,7 @@ func signup(t *testing.T, h http.Handler, name string) *http.Cookie {
 	}
 	return w.Result().Cookies()[0]
 }
+
 func TestOwnershipConflictAndTrash(t *testing.T) {
 	_, h := testApp(t)
 	alice := signup(t, h, "alice")
@@ -107,10 +110,18 @@ func TestSingleNoteLookupRequiresOwnership(t *testing.T) {
 	bob := signup(t, h, "note-reader")
 	created := request(h, "POST", "/v1/notes", `{"title":"Private lookup"}`, alice)
 	var note leafNote
-	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil { t.Fatal(err) }
-	if response := request(h, "GET", "/v1/notes/"+note.ID, "", alice); response.Code != 200 || !strings.Contains(response.Body.String(), "Private lookup") { t.Fatal(response.Code, response.Body) }
-	if response := request(h, "GET", "/v1/notes/"+note.ID, "", bob); response.Code != 404 { t.Fatal(response.Code, response.Body) }
-	if response := request(h, "GET", "/v1/notes/not-a-uuid", "", alice); response.Code != 400 { t.Fatal(response.Code, response.Body) }
+	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil {
+		t.Fatal(err)
+	}
+	if response := request(h, "GET", "/v1/notes/"+note.ID, "", alice); response.Code != 200 || !strings.Contains(response.Body.String(), "Private lookup") {
+		t.Fatal(response.Code, response.Body)
+	}
+	if response := request(h, "GET", "/v1/notes/"+note.ID, "", bob); response.Code != 404 {
+		t.Fatal(response.Code, response.Body)
+	}
+	if response := request(h, "GET", "/v1/notes/not-a-uuid", "", alice); response.Code != 400 {
+		t.Fatal(response.Code, response.Body)
+	}
 }
 
 func TestInvalidNotePagesAreNotSilentlyReplacedWithPageOne(t *testing.T) {
@@ -129,6 +140,7 @@ func TestInvalidNotePagesAreNotSilentlyReplacedWithPageOne(t *testing.T) {
 		}
 	}
 }
+
 func TestNoteSearchLimitCountsCharactersNotUTF8Bytes(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "unicode-search")
@@ -142,6 +154,7 @@ func TestNoteSearchLimitCountsCharactersNotUTF8Bytes(t *testing.T) {
 		}
 	}
 }
+
 func TestDuplicateNoteFiltersAreRejected(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "duplicate-filter")
@@ -152,6 +165,7 @@ func TestDuplicateNoteFiltersAreRejected(t *testing.T) {
 		}
 	}
 }
+
 func TestNoteSortModesAreValidated(t *testing.T) {
 	cfg, h := testApp(t)
 	cookie := signup(t, h, "sort-mode")
@@ -183,6 +197,7 @@ func TestNoteSortModesAreValidated(t *testing.T) {
 		t.Fatalf("descending title ordering: %d %s", response.Code, response.Body.String())
 	}
 }
+
 func TestNotePageSizeIsBoundedAndReported(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "page-size")
@@ -205,6 +220,7 @@ func TestNotePageSizeIsBoundedAndReported(t *testing.T) {
 		}
 	}
 }
+
 func TestUnknownNoteFiltersAreRejected(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "unknown-filter")
@@ -213,6 +229,7 @@ func TestUnknownNoteFiltersAreRejected(t *testing.T) {
 		t.Fatalf("%d %s", response.Code, response.Body)
 	}
 }
+
 func TestWhitespaceOnlyNoteSearchShowsAllNotes(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "space-search")
@@ -224,6 +241,7 @@ func TestWhitespaceOnlyNoteSearchShowsAllNotes(t *testing.T) {
 		t.Fatal(response.Code, response.Body)
 	}
 }
+
 func TestExactTitleFilter(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "title-filter")
@@ -244,13 +262,20 @@ func TestPinnedFilterAcceptsExactBooleans(t *testing.T) {
 	request(h, "POST", "/v1/notes", `{"title":"Pinned","pinned":true}`, cookie)
 	request(h, "POST", "/v1/notes", `{"title":"Loose"}`, cookie)
 	pinned := request(h, "GET", "/v1/notes?pinned=true", "", cookie)
-	if pinned.Code != 200 || !strings.Contains(pinned.Body.String(), `"title":"Pinned"`) || strings.Contains(pinned.Body.String(), `"title":"Loose"`) { t.Fatal(pinned.Code, pinned.Body) }
+	if pinned.Code != 200 || !strings.Contains(pinned.Body.String(), `"title":"Pinned"`) || strings.Contains(pinned.Body.String(), `"title":"Loose"`) {
+		t.Fatal(pinned.Code, pinned.Body)
+	}
 	unpinned := request(h, "GET", "/v1/notes?pinned=false", "", cookie)
-	if unpinned.Code != 200 || !strings.Contains(unpinned.Body.String(), `"title":"Loose"`) || strings.Contains(unpinned.Body.String(), `"title":"Pinned"`) { t.Fatal(unpinned.Code, unpinned.Body) }
+	if unpinned.Code != 200 || !strings.Contains(unpinned.Body.String(), `"title":"Loose"`) || strings.Contains(unpinned.Body.String(), `"title":"Pinned"`) {
+		t.Fatal(unpinned.Code, unpinned.Body)
+	}
 	for _, query := range []string{"?pinned=1", "?pinned=True", "?pinned=true&pinned=false"} {
-		if response := request(h, "GET", "/v1/notes"+query, "", cookie); response.Code != 400 { t.Fatal(query, response.Code, response.Body) }
+		if response := request(h, "GET", "/v1/notes"+query, "", cookie); response.Code != 400 {
+			t.Fatal(query, response.Code, response.Body)
+		}
 	}
 }
+
 func TestNoteBodiesRejectUnsafeControlsButKeepFormattingWhitespace(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-controls")
@@ -306,6 +331,7 @@ func TestSessionsValidationAndCSRF(t *testing.T) {
 		t.Fatal("registration switch ignored")
 	}
 }
+
 func TestMigrationPreservesCourseData(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -344,6 +370,7 @@ func TestMigrationPreservesCourseData(t *testing.T) {
 		t.Fatal("legacy key still usable", w.Code)
 	}
 }
+
 func TestAuthRateLimit(t *testing.T) {
 	_, h := testApp(t)
 	for range 20 {

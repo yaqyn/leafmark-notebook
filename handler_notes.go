@@ -3,14 +3,15 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"github.com/yaqyn/leafmark-notebook/internal/database"
 	"net/http"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"github.com/yaqyn/leafmark-notebook/internal/database"
 )
 
 type leafNote struct {
@@ -31,6 +32,7 @@ func scanNote(row interface{ Scan(...any) error }) (n leafNote, err error) {
 	err = row.Scan(&n.ID, &n.Title, &n.Note, &n.CreatedAt, &n.UpdatedAt, &n.Pinned, &n.Archived, &n.Trashed, &n.Version)
 	return
 }
+
 func validateNote(w http.ResponseWriter, n *leafNote) bool {
 	n.Title = strings.TrimSpace(n.Title)
 	if !utf8.ValidString(n.Title) || !utf8.ValidString(n.Note) || strings.IndexFunc(n.Title, unicode.IsControl) >= 0 || utf8.RuneCountInString(n.Title) > 160 || len(n.Note) > 100000 {
@@ -49,6 +51,7 @@ func validateNote(w http.ResponseWriter, n *leafNote) bool {
 	}
 	return true
 }
+
 func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u database.User) {
 	query := r.URL.Query()
 	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true}
@@ -159,6 +162,7 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 	pages := max(1, (total+pageSize-1)/pageSize)
 	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_previous": page > 1, "has_more": page < pages})
 }
+
 func (cfg *apiConfig) handlerNoteGet(w http.ResponseWriter, r *http.Request, u database.User) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -176,6 +180,7 @@ func (cfg *apiConfig) handlerNoteGet(w http.ResponseWriter, r *http.Request, u d
 	}
 	respondWithJSON(w, 200, note)
 }
+
 func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request, u database.User) {
 	var n leafNote
 	if !decodeJSON(w, r, &n) || !validateNote(w, &n) {
@@ -213,6 +218,7 @@ func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request,
 	n.Trashed = false
 	respondWithJSON(w, 201, n)
 }
+
 func (cfg *apiConfig) handlerNotesUpdate(w http.ResponseWriter, r *http.Request, u database.User) {
 	var n leafNote
 	if !decodeJSON(w, r, &n) || !validateNote(w, &n) {
@@ -240,6 +246,7 @@ func (cfg *apiConfig) handlerNotesUpdate(w http.ResponseWriter, r *http.Request,
 	}
 	respondWithJSON(w, 200, saved)
 }
+
 func (cfg *apiConfig) exportNotes(w http.ResponseWriter, r *http.Request, u database.User) {
 	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE user_id=? ORDER BY created_at,id", u.ID)
 	if err != nil {
