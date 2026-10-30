@@ -237,6 +237,20 @@ func TestExactTitleFilter(t *testing.T) {
 		t.Fatal(response.Code, response.Body)
 	}
 }
+
+func TestPinnedFilterAcceptsExactBooleans(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "pinned-filter")
+	request(h, "POST", "/v1/notes", `{"title":"Pinned","pinned":true}`, cookie)
+	request(h, "POST", "/v1/notes", `{"title":"Loose"}`, cookie)
+	pinned := request(h, "GET", "/v1/notes?pinned=true", "", cookie)
+	if pinned.Code != 200 || !strings.Contains(pinned.Body.String(), `"title":"Pinned"`) || strings.Contains(pinned.Body.String(), `"title":"Loose"`) { t.Fatal(pinned.Code, pinned.Body) }
+	unpinned := request(h, "GET", "/v1/notes?pinned=false", "", cookie)
+	if unpinned.Code != 200 || !strings.Contains(unpinned.Body.String(), `"title":"Loose"`) || strings.Contains(unpinned.Body.String(), `"title":"Pinned"`) { t.Fatal(unpinned.Code, unpinned.Body) }
+	for _, query := range []string{"?pinned=1", "?pinned=True", "?pinned=true&pinned=false"} {
+		if response := request(h, "GET", "/v1/notes"+query, "", cookie); response.Code != 400 { t.Fatal(query, response.Code, response.Body) }
+	}
+}
 func TestNoteBodiesRejectUnsafeControlsButKeepFormattingWhitespace(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-controls")
