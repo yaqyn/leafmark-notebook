@@ -149,6 +149,23 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 	pages := max(1, (total+pageSize-1)/pageSize)
 	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_previous": page > 1, "has_more": page < pages})
 }
+func (cfg *apiConfig) handlerNoteGet(w http.ResponseWriter, r *http.Request, u database.User) {
+	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		respondWithError(w, 400, "Invalid note identifier", nil)
+		return
+	}
+	note, err := scanNote(cfg.conn.QueryRowContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE id=? AND user_id=?", id, u.ID))
+	if errors.Is(err, sql.ErrNoRows) {
+		respondWithError(w, 404, "Note not found", nil)
+		return
+	}
+	if err != nil {
+		respondWithError(w, 503, "Could not load note", nil)
+		return
+	}
+	respondWithJSON(w, 200, note)
+}
 func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request, u database.User) {
 	var n leafNote
 	if !decodeJSON(w, r, &n) || !validateNote(w, &n) {

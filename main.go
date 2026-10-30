@@ -120,6 +120,7 @@ func (cfg *apiConfig) routes() http.Handler {
 	r.Post("/v1/auth/logout", cfg.logout)
 	r.Get("/v1/users", cfg.middlewareAuth(cfg.handlerUsersGet))
 	r.Get("/v1/notes", cfg.middlewareAuth(cfg.handlerNotesGet))
+	r.Get("/v1/notes/{id}", cfg.middlewareAuth(cfg.handlerNoteGet))
 	r.Post("/v1/notes", cfg.middlewareAuth(cfg.handlerNotesCreate))
 	r.Put("/v1/notes/{id}", cfg.middlewareAuth(cfg.handlerNotesUpdate))
 	r.Get("/v1/export", cfg.middlewareAuth(cfg.exportNotes))

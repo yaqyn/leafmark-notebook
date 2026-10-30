@@ -101,6 +101,18 @@ func TestOwnershipConflictAndTrash(t *testing.T) {
 	}
 }
 
+func TestSingleNoteLookupRequiresOwnership(t *testing.T) {
+	_, h := testApp(t)
+	alice := signup(t, h, "note-owner")
+	bob := signup(t, h, "note-reader")
+	created := request(h, "POST", "/v1/notes", `{"title":"Private lookup"}`, alice)
+	var note leafNote
+	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil { t.Fatal(err) }
+	if response := request(h, "GET", "/v1/notes/"+note.ID, "", alice); response.Code != 200 || !strings.Contains(response.Body.String(), "Private lookup") { t.Fatal(response.Code, response.Body) }
+	if response := request(h, "GET", "/v1/notes/"+note.ID, "", bob); response.Code != 404 { t.Fatal(response.Code, response.Body) }
+	if response := request(h, "GET", "/v1/notes/not-a-uuid", "", alice); response.Code != 400 { t.Fatal(response.Code, response.Body) }
+}
+
 func TestInvalidNotePagesAreNotSilentlyReplacedWithPageOne(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "pager")
