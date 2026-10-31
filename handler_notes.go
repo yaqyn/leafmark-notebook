@@ -54,14 +54,14 @@ func validateNote(w http.ResponseWriter, n *leafNote) bool {
 
 func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u database.User) {
 	query := r.URL.Query()
-	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true}
+	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true, "has_content": true}
 	for name := range query {
 		if !allowed[name] {
 			respondWithError(w, 400, "Unknown note filter", nil)
 			return
 		}
 	}
-	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned"} {
+	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned", "has_content"} {
 		if len(query[name]) > 1 {
 			respondWithError(w, 400, "Duplicate "+name+" parameter", nil)
 			return
@@ -119,6 +119,16 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		respondWithError(w, 400, "Pinned must be true or false", nil)
 		return
 	}
+	switch query.Get("has_content") {
+	case "":
+	case "true":
+		filter += " AND trim(note)<>''"
+	case "false":
+		filter += " AND trim(note)=''"
+	default:
+		respondWithError(w, 400, "Has content must be true or false", nil)
+		return
+	}
 	order := "updated_at DESC, id"
 	switch query.Get("sort") {
 	case "", "updated":
@@ -160,6 +170,9 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		return
 	}
 	pages := max(1, (total+pageSize-1)/pageSize)
+	w.Header().Set("X-Result-Count", strconv.Itoa(len(notes)))
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	w.Header().Set("X-Has-More", strconv.FormatBool(page < pages))
 	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_previous": page > 1, "has_more": page < pages})
 }
 

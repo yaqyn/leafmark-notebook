@@ -276,6 +276,32 @@ func TestPinnedFilterAcceptsExactBooleans(t *testing.T) {
 	}
 }
 
+func TestNotesCanBeFilteredByBodyContent(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "content-filter")
+	request(h, "POST", "/v1/notes", `{"title":"Body","note":"Details"}`, cookie)
+	request(h, "POST", "/v1/notes", `{"title":"Title only"}`, cookie)
+	withBody := request(h, "GET", "/v1/notes?has_content=true", "", cookie)
+	if withBody.Code != 200 || !strings.Contains(withBody.Body.String(), `"title":"Body"`) || strings.Contains(withBody.Body.String(), `"title":"Title only"`) {
+		t.Fatal(withBody.Code, withBody.Body)
+	}
+	withoutBody := request(h, "GET", "/v1/notes?has_content=false", "", cookie)
+	if withoutBody.Code != 200 || !strings.Contains(withoutBody.Body.String(), `"title":"Title only"`) || strings.Contains(withoutBody.Body.String(), `"title":"Body"`) {
+		t.Fatal(withoutBody.Code, withoutBody.Body)
+	}
+}
+
+func TestNoteListExposesPaginationHeaders(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "pagination-headers")
+	request(h, "POST", "/v1/notes", `{"title":"One"}`, cookie)
+	request(h, "POST", "/v1/notes", `{"title":"Two"}`, cookie)
+	response := request(h, "GET", "/v1/notes?page_size=1", "", cookie)
+	if response.Code != 200 || response.Header().Get("X-Result-Count") != "1" || response.Header().Get("X-Total-Count") != "2" || response.Header().Get("X-Has-More") != "true" {
+		t.Fatal(response.Code, response.Header(), response.Body)
+	}
+}
+
 func TestNoteBodiesRejectUnsafeControlsButKeepFormattingWhitespace(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-controls")
