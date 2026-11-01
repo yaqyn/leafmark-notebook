@@ -267,6 +267,16 @@ func (cfg *apiConfig) handlerNotesUpdate(w http.ResponseWriter, r *http.Request,
 }
 
 func (cfg *apiConfig) exportNotes(w http.ResponseWriter, r *http.Request, u database.User) {
+	query := r.URL.Query()
+	if len(query) > 1 || len(query["format"]) > 1 || (len(query) == 1 && !query.Has("format")) {
+		respondWithError(w, 400, "Export accepts one format parameter", nil)
+		return
+	}
+	format := query.Get("format")
+	if format != "" && format != "json" && format != "markdown" {
+		respondWithError(w, 400, "Export format must be json or markdown", nil)
+		return
+	}
 	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE user_id=? ORDER BY created_at,id", u.ID)
 	if err != nil {
 		respondWithError(w, 503, "Could not export notes", nil)
@@ -284,6 +294,22 @@ func (cfg *apiConfig) exportNotes(w http.ResponseWriter, r *http.Request, u data
 	}
 	if rows.Err() != nil {
 		respondWithError(w, 503, "Could not finish export", nil)
+		return
+	}
+	if format == "markdown" {
+		var document strings.Builder
+		document.WriteString("# Leafmark notes\n")
+		for _, note := range notes {
+			title := note.Title
+			if title == "" {
+				title = "Untitled note"
+			}
+			document.WriteString("\n## " + title + "\n\n" + note.Note + "\n")
+		}
+		w.Header().Set("Content-Disposition", `attachment; filename="leafmark-notes.md"`)
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(document.String()))
 		return
 	}
 	w.Header().Set("Content-Disposition", `attachment; filename="leafmark-notes.json"`)
