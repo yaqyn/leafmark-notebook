@@ -191,6 +191,12 @@ func (cfg *apiConfig) handlerNoteGet(w http.ResponseWriter, r *http.Request, u d
 		respondWithError(w, 503, "Could not load note", nil)
 		return
 	}
+	etag := strconv.Quote("note-" + strconv.Itoa(note.Version))
+	w.Header().Set("ETag", etag)
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	respondWithJSON(w, 200, note)
 }
 

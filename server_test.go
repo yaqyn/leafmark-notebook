@@ -124,6 +124,26 @@ func TestSingleNoteLookupRequiresOwnership(t *testing.T) {
 	}
 }
 
+func TestSingleNoteLookupSupportsConditionalRequests(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "note-etag")
+	created := request(h, "POST", "/v1/notes", `{"title":"Cached note"}`, cookie)
+	var note leafNote
+	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil {
+		t.Fatal(err)
+	}
+	first := request(h, "GET", "/v1/notes/"+note.ID, "", cookie)
+	etag := first.Header().Get("ETag")
+	req := httptest.NewRequest("GET", "/v1/notes/"+note.ID, nil)
+	req.AddCookie(cookie)
+	req.Header.Set("If-None-Match", etag)
+	conditional := httptest.NewRecorder()
+	h.ServeHTTP(conditional, req)
+	if etag == "" || conditional.Code != http.StatusNotModified || conditional.Body.Len() != 0 {
+		t.Fatalf("etag=%q status=%d body=%s", etag, conditional.Code, conditional.Body.String())
+	}
+}
+
 func TestInvalidNotePagesAreNotSilentlyReplacedWithPageOne(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "pager")
