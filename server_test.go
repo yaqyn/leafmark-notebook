@@ -157,6 +157,23 @@ func TestNotesCanBeExportedAsMarkdown(t *testing.T) {
 	}
 }
 
+func TestExportCanSelectANotebookView(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "view-export")
+	created := request(h, "POST", "/v1/notes", `{"title":"Archived"}`, cookie)
+	var note leafNote
+	json.Unmarshal(created.Body.Bytes(), &note)
+	request(h, "PUT", "/v1/notes/"+note.ID, `{"title":"Archived","archived":true,"version":1}`, cookie)
+	request(h, "POST", "/v1/notes", `{"title":"Active"}`, cookie)
+	export := request(h, "GET", "/v1/export?view=archive", "", cookie)
+	if export.Code != http.StatusOK || !strings.Contains(export.Body.String(), "Archived") || strings.Contains(export.Body.String(), "Active") {
+		t.Fatalf("archive export: %d %s", export.Code, export.Body.String())
+	}
+	if invalid := request(h, "GET", "/v1/export?view=unknown", "", cookie); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid view: %d %s", invalid.Code, invalid.Body.String())
+	}
+}
+
 func TestInvalidNotePagesAreNotSilentlyReplacedWithPageOne(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "pager")

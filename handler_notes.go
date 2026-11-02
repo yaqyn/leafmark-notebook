@@ -268,16 +268,37 @@ func (cfg *apiConfig) handlerNotesUpdate(w http.ResponseWriter, r *http.Request,
 
 func (cfg *apiConfig) exportNotes(w http.ResponseWriter, r *http.Request, u database.User) {
 	query := r.URL.Query()
-	if len(query) > 1 || len(query["format"]) > 1 || (len(query) == 1 && !query.Has("format")) {
-		respondWithError(w, 400, "Export accepts one format parameter", nil)
-		return
+	for name := range query {
+		if name != "format" && name != "view" {
+			respondWithError(w, 400, "Unknown export parameter", nil)
+			return
+		}
+	}
+	for _, name := range []string{"format", "view"} {
+		if len(query[name]) > 1 {
+			respondWithError(w, 400, "Duplicate "+name+" parameter", nil)
+			return
+		}
 	}
 	format := query.Get("format")
 	if format != "" && format != "json" && format != "markdown" {
 		respondWithError(w, 400, "Export format must be json or markdown", nil)
 		return
 	}
-	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE user_id=? ORDER BY created_at,id", u.ID)
+	filter := ""
+	switch query.Get("view") {
+	case "", "all":
+	case "active":
+		filter = " AND trashed=0 AND archived=0"
+	case "archive":
+		filter = " AND trashed=0 AND archived=1"
+	case "trash":
+		filter = " AND trashed=1"
+	default:
+		respondWithError(w, 400, "Export view must be all, active, archive, or trash", nil)
+		return
+	}
+	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE user_id=?"+filter+" ORDER BY created_at,id", u.ID)
 	if err != nil {
 		respondWithError(w, 503, "Could not export notes", nil)
 		return
