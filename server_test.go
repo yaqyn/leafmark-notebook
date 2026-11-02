@@ -147,10 +147,13 @@ func TestSingleNoteLookupSupportsConditionalRequests(t *testing.T) {
 func TestNotesCanBeExportedAsMarkdown(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "markdown-export")
-	request(h, "POST", "/v1/notes", `{"title":"Field notes","note":"A useful detail."}`, cookie)
+	request(h, "POST", "/v1/notes", `{"title":"Field notes","note":"A useful detail.","pinned":true}`, cookie)
 	export := request(h, "GET", "/v1/export?format=markdown", "", cookie)
-	if export.Code != http.StatusOK || export.Header().Get("Content-Type") != "text/markdown; charset=utf-8" || !strings.Contains(export.Body.String(), "## Field notes\n\nA useful detail.") {
+	if export.Code != http.StatusOK || export.Header().Get("Content-Type") != "text/markdown; charset=utf-8" || !strings.Contains(export.Body.String(), "## Field notes") || !strings.Contains(export.Body.String(), "A useful detail.") {
 		t.Fatalf("markdown export: %d %v %s", export.Code, export.Header(), export.Body.String())
+	}
+	if !strings.Contains(export.Body.String(), "> Status: pinned") {
+		t.Fatalf("markdown export omitted state: %s", export.Body.String())
 	}
 	if invalid := request(h, "GET", "/v1/export?format=pdf", "", cookie); invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid format: %d %s", invalid.Code, invalid.Body.String())

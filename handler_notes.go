@@ -325,7 +325,21 @@ func (cfg *apiConfig) exportNotes(w http.ResponseWriter, r *http.Request, u data
 			if title == "" {
 				title = "Untitled note"
 			}
-			document.WriteString("\n## " + title + "\n\n" + note.Note + "\n")
+			document.WriteString("\n## " + title + "\n")
+			states := []string{}
+			if note.Pinned {
+				states = append(states, "pinned")
+			}
+			if note.Archived {
+				states = append(states, "archived")
+			}
+			if note.Trashed {
+				states = append(states, "trashed")
+			}
+			if len(states) > 0 {
+				document.WriteString("\n> Status: " + strings.Join(states, ", ") + "\n")
+			}
+			document.WriteString("\n" + note.Note + "\n")
 		}
 		w.Header().Set("Content-Disposition", `attachment; filename="leafmark-notes.md"`)
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
