@@ -238,6 +238,7 @@ func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request,
 	}
 	n.Archived = false
 	n.Trashed = false
+	w.Header().Set("Location", "/v1/notes/"+n.ID)
 	respondWithJSON(w, 201, n)
 }
 

@@ -137,6 +137,19 @@ func TestNotesReportBodyWordCounts(t *testing.T) {
 	}
 }
 
+func TestCreatedNotesAdvertiseTheirDetailLocation(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "note-location")
+	created := request(h, "POST", "/v1/notes", `{"title":"Located"}`, cookie)
+	var note leafNote
+	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil {
+		t.Fatal(err)
+	}
+	if created.Code != http.StatusCreated || created.Header().Get("Location") != "/v1/notes/"+note.ID {
+		t.Fatalf("status=%d location=%q", created.Code, created.Header().Get("Location"))
+	}
+}
+
 func TestSingleNoteLookupSupportsConditionalRequests(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-etag")
