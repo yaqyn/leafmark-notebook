@@ -124,6 +124,19 @@ func TestSingleNoteLookupRequiresOwnership(t *testing.T) {
 	}
 }
 
+func TestNotesReportBodyWordCounts(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "word-count")
+	created := request(h, "POST", "/v1/notes", `{"title":"Counted","note":"one  two\nthree"}`, cookie)
+	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"word_count":3`) {
+		t.Fatalf("create: %d %s", created.Code, created.Body.String())
+	}
+	listed := request(h, "GET", "/v1/notes", "", cookie)
+	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), `"word_count":3`) {
+		t.Fatalf("list: %d %s", listed.Code, listed.Body.String())
+	}
+}
+
 func TestSingleNoteLookupSupportsConditionalRequests(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-etag")

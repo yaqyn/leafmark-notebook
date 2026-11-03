@@ -24,12 +24,14 @@ type leafNote struct {
 	Archived  bool   `json:"archived"`
 	Trashed   bool   `json:"trashed"`
 	Version   int    `json:"version"`
+	WordCount int    `json:"word_count"`
 }
 
 const noteColumns = "id,title,note,created_at,updated_at,pinned,archived,trashed,version"
 
 func scanNote(row interface{ Scan(...any) error }) (n leafNote, err error) {
 	err = row.Scan(&n.ID, &n.Title, &n.Note, &n.CreatedAt, &n.UpdatedAt, &n.Pinned, &n.Archived, &n.Trashed, &n.Version)
+	n.WordCount = len(strings.Fields(n.Note))
 	return
 }
 
@@ -214,6 +216,7 @@ func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request,
 	n.CreatedAt = timestamp()
 	n.UpdatedAt = n.CreatedAt
 	n.Version = 1
+	n.WordCount = len(strings.Fields(n.Note))
 	result, err := cfg.conn.ExecContext(r.Context(), `INSERT INTO notes(id,title,note,created_at,updated_at,user_id,pinned,archived,trashed,version) VALUES(?,?,?,?,?,?,?,0,0,1) ON CONFLICT(id) DO NOTHING`, n.ID, n.Title, n.Note, n.CreatedAt, n.UpdatedAt, u.ID, n.Pinned)
 	if err != nil {
 		respondWithError(w, 503, "Could not save note; try again", nil)
