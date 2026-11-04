@@ -29,6 +29,10 @@ type leafNote struct {
 
 const noteColumns = "id,title,note,created_at,updated_at,pinned,archived,trashed,version"
 
+func noteETag(note leafNote) string {
+	return strconv.Quote("note-" + strconv.Itoa(note.Version))
+}
+
 func scanNote(row interface{ Scan(...any) error }) (n leafNote, err error) {
 	err = row.Scan(&n.ID, &n.Title, &n.Note, &n.CreatedAt, &n.UpdatedAt, &n.Pinned, &n.Archived, &n.Trashed, &n.Version)
 	n.WordCount = len(strings.Fields(n.Note))
@@ -195,7 +199,7 @@ func (cfg *apiConfig) handlerNoteGet(w http.ResponseWriter, r *http.Request, u d
 		respondWithError(w, 503, "Could not load note", nil)
 		return
 	}
-	etag := strconv.Quote("note-" + strconv.Itoa(note.Version))
+	etag := noteETag(note)
 	w.Header().Set("ETag", etag)
 	if r.Header.Get("If-None-Match") == etag {
 		w.WriteHeader(http.StatusNotModified)
@@ -232,6 +236,7 @@ func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request,
 	if count == 0 {
 		existing, err := scanNote(cfg.conn.QueryRowContext(r.Context(), "SELECT "+noteColumns+" FROM notes WHERE id=? AND user_id=?", n.ID, u.ID))
 		if err == nil && existing.Title == n.Title && existing.Note == n.Note && existing.Pinned == n.Pinned && !existing.Archived && !existing.Trashed {
+			w.Header().Set("ETag", noteETag(existing))
 			respondWithJSON(w, 200, existing)
 			return
 		}
@@ -241,6 +246,7 @@ func (cfg *apiConfig) handlerNotesCreate(w http.ResponseWriter, r *http.Request,
 	n.Archived = false
 	n.Trashed = false
 	w.Header().Set("Location", "/v1/notes/"+n.ID)
+	w.Header().Set("ETag", noteETag(n))
 	respondWithJSON(w, 201, n)
 }
 
@@ -269,6 +275,7 @@ func (cfg *apiConfig) handlerNotesUpdate(w http.ResponseWriter, r *http.Request,
 		}
 		return
 	}
+	w.Header().Set("ETag", noteETag(saved))
 	respondWithJSON(w, 200, saved)
 }
 

@@ -159,6 +159,23 @@ func TestCreatedNotesAdvertiseTheirDetailLocation(t *testing.T) {
 	}
 }
 
+func TestNoteWritesExposeCurrentEntityTag(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "write-etag")
+	created := request(h, "POST", "/v1/notes", `{"title":"Versioned"}`, cookie)
+	var note leafNote
+	if err := json.Unmarshal(created.Body.Bytes(), &note); err != nil {
+		t.Fatal(err)
+	}
+	if created.Header().Get("ETag") != `"note-1"` {
+		t.Fatalf("create etag=%q", created.Header().Get("ETag"))
+	}
+	updated := request(h, "PUT", "/v1/notes/"+note.ID, `{"title":"Versioned again","version":1}`, cookie)
+	if updated.Header().Get("ETag") != `"note-2"` {
+		t.Fatalf("update etag=%q", updated.Header().Get("ETag"))
+	}
+}
+
 func TestSingleNoteLookupSupportsConditionalRequests(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-etag")
