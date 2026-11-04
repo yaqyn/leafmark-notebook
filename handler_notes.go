@@ -175,6 +175,8 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 	w.Header().Set("X-Result-Count", strconv.Itoa(len(notes)))
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	w.Header().Set("X-Has-More", strconv.FormatBool(page < pages))
+	w.Header().Set("X-Page", strconv.Itoa(page))
+	w.Header().Set("X-Page-Size", strconv.Itoa(pageSize))
 	respondWithJSON(w, 200, map[string]any{"notes": notes, "total": total, "page": page, "pages": pages, "page_size": pageSize, "has_previous": page > 1, "has_more": page < pages})
 }
 

@@ -137,6 +137,15 @@ func TestNotesReportBodyWordCounts(t *testing.T) {
 	}
 }
 
+func TestNoteListsExposePageMetadata(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "page-metadata")
+	listed := request(h, "GET", "/v1/notes?page=2&page_size=7", "", cookie)
+	if listed.Header().Get("X-Page") != "2" || listed.Header().Get("X-Page-Size") != "7" {
+		t.Fatalf("headers=%v", listed.Header())
+	}
+}
+
 func TestCreatedNotesAdvertiseTheirDetailLocation(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-location")
