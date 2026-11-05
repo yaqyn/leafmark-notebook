@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -60,14 +61,14 @@ func validateNote(w http.ResponseWriter, n *leafNote) bool {
 
 func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u database.User) {
 	query := r.URL.Query()
-	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true, "has_content": true}
+	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true, "has_content": true, "updated_since": true}
 	for name := range query {
 		if !allowed[name] {
 			respondWithError(w, 400, "Unknown note filter", nil)
 			return
 		}
 	}
-	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned", "has_content"} {
+	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned", "has_content", "updated_since"} {
 		if len(query[name]) > 1 {
 			respondWithError(w, 400, "Duplicate "+name+" parameter", nil)
 			return
@@ -100,6 +101,15 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 	if !utf8.ValidString(title) || strings.IndexFunc(title, unicode.IsControl) >= 0 || utf8.RuneCountInString(title) > 160 {
 		respondWithError(w, 400, "Title filter is invalid", nil)
 		return
+	}
+	updatedSince := strings.TrimSpace(query.Get("updated_since"))
+	if updatedSince != "" {
+		parsed, err := time.Parse(time.RFC3339, updatedSince)
+		if err != nil {
+			respondWithError(w, 400, "Updated since must use RFC 3339", nil)
+			return
+		}
+		updatedSince = parsed.UTC().Format(time.RFC3339)
 	}
 	view := query.Get("view")
 	filter := "trashed=0 AND archived=0"
@@ -150,13 +160,13 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		respondWithError(w, 400, "Sort must be updated, created, oldest, title, or title-desc", nil)
 		return
 	}
-	where := ` FROM notes WHERE user_id=? AND ` + filter + ` AND (?='' OR instr(lower(title || char(10) || note),lower(?))>0) AND (?='' OR lower(title)=lower(?))`
+	where := ` FROM notes WHERE user_id=? AND ` + filter + ` AND (?='' OR instr(lower(title || char(10) || note),lower(?))>0) AND (?='' OR lower(title)=lower(?)) AND (?='' OR updated_at>=?)`
 	var total int
-	if err := cfg.conn.QueryRowContext(r.Context(), "SELECT count(*)"+where, u.ID, q, q, title, title).Scan(&total); err != nil {
+	if err := cfg.conn.QueryRowContext(r.Context(), "SELECT count(*)"+where, u.ID, q, q, title, title, updatedSince, updatedSince).Scan(&total); err != nil {
 		respondWithError(w, 503, "Could not load notes", nil)
 		return
 	}
-	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+where+" ORDER BY pinned DESC, "+order+" LIMIT ? OFFSET ?", u.ID, q, q, title, title, pageSize, (page-1)*pageSize)
+	rows, err := cfg.conn.QueryContext(r.Context(), "SELECT "+noteColumns+where+" ORDER BY pinned DESC, "+order+" LIMIT ? OFFSET ?", u.ID, q, q, title, title, updatedSince, updatedSince, pageSize, (page-1)*pageSize)
 	if err != nil {
 		respondWithError(w, 503, "Could not load notes", nil)
 		return

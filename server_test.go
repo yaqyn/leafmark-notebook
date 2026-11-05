@@ -146,6 +146,23 @@ func TestNoteListsExposePageMetadata(t *testing.T) {
 	}
 }
 
+func TestNoteListsCanFilterByUpdateTime(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "updated-since")
+	request(h, "POST", "/v1/notes", `{"title":"Recent"}`, cookie)
+	listed := request(h, "GET", "/v1/notes?updated_since=2000-01-01T00:00:00Z", "", cookie)
+	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), `"total":1`) {
+		t.Fatalf("past filter: %d %s", listed.Code, listed.Body.String())
+	}
+	listed = request(h, "GET", "/v1/notes?updated_since=2999-01-01T00:00:00Z", "", cookie)
+	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), `"total":0`) {
+		t.Fatalf("future filter: %d %s", listed.Code, listed.Body.String())
+	}
+	if invalid := request(h, "GET", "/v1/notes?updated_since=yesterday", "", cookie); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid filter: %d %s", invalid.Code, invalid.Body.String())
+	}
+}
+
 func TestCreatedNotesAdvertiseTheirDetailLocation(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-location")
