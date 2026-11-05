@@ -163,6 +163,20 @@ func TestNoteListsCanFilterByUpdateTime(t *testing.T) {
 	}
 }
 
+func TestNoteListsCanFindUntitledNotes(t *testing.T) {
+	_, h := testApp(t)
+	cookie := signup(t, h, "title-filter")
+	request(h, "POST", "/v1/notes", `{"title":"Named"}`, cookie)
+	request(h, "POST", "/v1/notes", `{"note":"Inbox thought"}`, cookie)
+	untitled := request(h, "GET", "/v1/notes?has_title=false", "", cookie)
+	if untitled.Code != http.StatusOK || !strings.Contains(untitled.Body.String(), "Inbox thought") || strings.Contains(untitled.Body.String(), "Named") {
+		t.Fatalf("untitled: %d %s", untitled.Code, untitled.Body.String())
+	}
+	if invalid := request(h, "GET", "/v1/notes?has_title=1", "", cookie); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid title filter: %d %s", invalid.Code, invalid.Body.String())
+	}
+}
+
 func TestCreatedNotesAdvertiseTheirDetailLocation(t *testing.T) {
 	_, h := testApp(t)
 	cookie := signup(t, h, "note-location")

@@ -61,14 +61,14 @@ func validateNote(w http.ResponseWriter, n *leafNote) bool {
 
 func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u database.User) {
 	query := r.URL.Query()
-	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true, "has_content": true, "updated_since": true}
+	allowed := map[string]bool{"page": true, "page_size": true, "q": true, "title": true, "view": true, "sort": true, "pinned": true, "has_content": true, "has_title": true, "updated_since": true}
 	for name := range query {
 		if !allowed[name] {
 			respondWithError(w, 400, "Unknown note filter", nil)
 			return
 		}
 	}
-	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned", "has_content", "updated_since"} {
+	for _, name := range []string{"page", "page_size", "q", "title", "view", "sort", "pinned", "has_content", "has_title", "updated_since"} {
 		if len(query[name]) > 1 {
 			respondWithError(w, 400, "Duplicate "+name+" parameter", nil)
 			return
@@ -143,6 +143,16 @@ func (cfg *apiConfig) handlerNotesGet(w http.ResponseWriter, r *http.Request, u 
 		filter += " AND trim(note)=''"
 	default:
 		respondWithError(w, 400, "Has content must be true or false", nil)
+		return
+	}
+	switch query.Get("has_title") {
+	case "":
+	case "true":
+		filter += " AND trim(title)<>''"
+	case "false":
+		filter += " AND trim(title)=''"
+	default:
+		respondWithError(w, 400, "Has title must be true or false", nil)
 		return
 	}
 	order := "updated_at DESC, id"
